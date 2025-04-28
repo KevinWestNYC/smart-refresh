@@ -5,42 +5,54 @@ let initialUrl = null;
 // Function to load and replay events
 function loadAndReplayEvents() {
   console.log('Loading events from storage...');
-  chrome.storage.local.get(['savedEvents', 'initialUrl'], function(result) {
+  chrome.storage.local.get(['savedEvents', 'initialUrl', 'shouldReplayEvents'], function(result) {
     if (result.savedEvents) {
       loggedEvents = result.savedEvents;
       initialUrl = result.initialUrl;
+      const shouldReplay = result.shouldReplayEvents || false;
       console.log('Loaded saved events:', loggedEvents);
       console.log('Initial URL:', initialUrl);
+      console.log('Should replay events:', shouldReplay);
       
       // Reset retry counts for all events
       loggedEvents.forEach(event => {
         delete event.retryCount;
       });
       
-      // Check if we need to navigate to the initial URL
-      if (initialUrl && window.location.href !== initialUrl) {
-        console.log('Navigating to initial URL:', initialUrl);
-        window.location.href = initialUrl;
-        return; // Stop here, the page reload will trigger the replay
-      }
-      
-      // Wait for page to be fully loaded before replaying events
-      if (document.readyState === 'complete') {
-        console.log('Page already loaded, waiting before replaying events');
-        // Add a delay before replaying to ensure page is fully ready
-        setTimeout(() => {
-          console.log('Starting event replay after delay');
-          replayEvents();
-        }, 2000);
-      } else {
-        console.log('Waiting for page load before replaying events');
-        window.addEventListener('load', function() {
-          console.log('Page loaded, waiting before starting event replay');
+      // Only proceed with replay if shouldReplayEvents is true
+      if (shouldReplay) {
+        // Reset the flag immediately
+        chrome.storage.local.set({ shouldReplayEvents: false }, function() {
+          console.log('Reset shouldReplayEvents flag');
+        });
+        
+        // Check if we need to navigate to the initial URL
+        if (initialUrl && window.location.href !== initialUrl) {
+          console.log('Navigating to initial URL:', initialUrl);
+          window.location.href = initialUrl;
+          return; // Stop here, the page reload will trigger the replay
+        }
+        
+        // Wait for page to be fully loaded before replaying events
+        if (document.readyState === 'complete') {
+          console.log('Page already loaded, waiting before replaying events');
+          // Add a delay before replaying to ensure page is fully ready
           setTimeout(() => {
             console.log('Starting event replay after delay');
             replayEvents();
           }, 2000);
-        });
+        } else {
+          console.log('Waiting for page load before replaying events');
+          window.addEventListener('load', function() {
+            console.log('Page loaded, waiting before starting event replay');
+            setTimeout(() => {
+              console.log('Starting event replay after delay');
+              replayEvents();
+            }, 2000);
+          });
+        }
+      } else {
+        console.log('Event replay not triggered - waiting for smart refresh button');
       }
     } else {
       console.log('No saved events found in storage');
@@ -168,27 +180,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   else if (message.action === 'smartRefresh') {
     console.log('Received smart refresh request');
-    // First load events from storage to ensure we have the latest
-    chrome.storage.local.get(['savedEvents', 'initialUrl'], function(result) {
-      if (result.savedEvents) {
-        loggedEvents = result.savedEvents;
-        initialUrl = result.initialUrl;
-        console.log('Loaded events for smart refresh:', loggedEvents);
-        console.log('Initial URL:', initialUrl);
-      }
-      
-      // Save events and request refresh
-      chrome.storage.local.set({ savedEvents: loggedEvents, initialUrl: initialUrl }, function() {
-        console.log('Events saved before refresh');
-        // Send response before refreshing
-        sendResponse({ status: 'refreshing' });
-        // Request the background script to refresh the tab
-        chrome.runtime.sendMessage({ action: 'refreshTab' }, function(response) {
-          if (chrome.runtime.lastError) {
-            console.error('Error sending refresh request:', chrome.runtime.lastError);
-          } else {
-            console.log('Refresh request sent successfully');
-          }
+    // Set the flag in storage before refreshing
+    chrome.storage.local.set({ shouldReplayEvents: true }, function() {
+      console.log('Set shouldReplayEvents flag to true');
+      // First load events from storage to ensure we have the latest
+      chrome.storage.local.get(['savedEvents', 'initialUrl'], function(result) {
+        if (result.savedEvents) {
+          loggedEvents = result.savedEvents;
+          initialUrl = result.initialUrl;
+          console.log('Loaded events for smart refresh:', loggedEvents);
+          console.log('Initial URL:', initialUrl);
+        }
+        
+        // Save events and request refresh
+        chrome.storage.local.set({ savedEvents: loggedEvents, initialUrl: initialUrl }, function() {
+          console.log('Events saved before refresh');
+          // Send response before refreshing
+          sendResponse({ status: 'refreshing' });
+          // Request the background script to refresh the tab
+          chrome.runtime.sendMessage({ action: 'refreshTab' }, function(response) {
+            if (chrome.runtime.lastError) {
+              console.error('Error sending refresh request:', chrome.runtime.lastError);
+            } else {
+              console.log('Refresh request sent successfully');
+            }
+          });
         });
       });
     });
