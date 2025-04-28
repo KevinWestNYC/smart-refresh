@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const clearButton = document.getElementById('clear');
   const smartRefreshButton = document.getElementById('smartRefresh');
   const statusDiv = document.getElementById('status');
+  const tabToggle = document.getElementById('tabToggle');
 
   function updateStatus(message, isError = false) {
     statusDiv.textContent = message;
@@ -74,112 +75,136 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  startButton.addEventListener('click', function() {
-    console.log('Start button clicked');
+  // Load saved toggle state for current tab
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    if (!tabs[0]) return;
+    
+    chrome.storage.local.get(['activeTabs'], function(result) {
+      const activeTabs = result.activeTabs || {};
+      tabToggle.checked = activeTabs[tabs[0].id] || false;
+      
+      // Update button states based on toggle
+      updateButtonStates(tabToggle.checked);
+    });
+  });
+
+  function updateButtonStates(isActive) {
+    startButton.disabled = !isActive;
+    stopButton.disabled = !isActive;
+    clearButton.disabled = !isActive;
+    smartRefreshButton.disabled = !isActive;
+  }
+
+  // Handle toggle changes
+  tabToggle.addEventListener('change', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (chrome.runtime.lastError) {
-        console.error('Error querying tabs:', chrome.runtime.lastError);
-        return;
-      }
+      if (!tabs[0]) return;
       
-      if (!tabs[0]) {
-        console.error('No active tab found');
-        return;
-      }
-      
-      console.log('Sending startLogging message to tab:', tabs[0].id);
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'startLogging'}, function(response) {
-        if (chrome.runtime.lastError) {
-          console.error('Error sending startLogging message:', chrome.runtime.lastError);
-        } else {
-          console.log('Start logging response:', response);
-        }
+      chrome.storage.local.get(['activeTabs'], function(result) {
+        const activeTabs = result.activeTabs || {};
+        activeTabs[tabs[0].id] = tabToggle.checked;
+        
+        chrome.storage.local.set({ activeTabs: activeTabs }, function() {
+          console.log('Tab active state updated:', activeTabs);
+          updateButtonStates(tabToggle.checked);
+          
+          if (tabToggle.checked) {
+            // Inject content script if toggled on
+            chrome.scripting.executeScript({
+              target: { tabId: tabs[0].id },
+              files: ['content.js']
+            }).catch(err => {
+              console.error('Error injecting content script:', err);
+            });
+          }
+        });
       });
     });
   });
 
-  stopButton.addEventListener('click', function() {
-    console.log('Stop button clicked');
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (chrome.runtime.lastError) {
-        console.error('Error querying tabs:', chrome.runtime.lastError);
-        return;
-      }
-      
-      if (!tabs[0]) {
-        console.error('No active tab found');
-        return;
-      }
-      
-      console.log('Sending stopLogging message to tab:', tabs[0].id);
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'stopLogging'}, function(response) {
-        if (chrome.runtime.lastError) {
-          console.error('Error sending stopLogging message:', chrome.runtime.lastError);
-        } else {
-          console.log('Stop logging response:', response);
-        }
-      });
-    });
-  });
-
-  clearButton.addEventListener('click', function() {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (!tabs[0]) {
-        updateStatus('No active tab found', true);
-        return;
-      }
-      
-      // Clear the events display first
-      const existingList = document.getElementById('events-list');
-      if (existingList) {
-        existingList.remove();
-      }
-      
-      // Send clear message to content script
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'clearEvents'}, function(response) {
-        if (chrome.runtime.lastError) {
-          updateStatus('Error: ' + chrome.runtime.lastError.message, true);
+  // Modify each button click handler to check if tab is active
+  function wrapButtonHandler(handler) {
+    return function() {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (!tabs[0]) {
+          updateStatus('No active tab found', true);
           return;
         }
         
-        // Also clear from storage directly to ensure it's cleared
-        chrome.storage.local.remove(['savedEvents', 'initialUrl'], function() {
-          updateStatus('Events cleared successfully');
-        });
-      });
-    });
-  });
-
-  smartRefreshButton.addEventListener('click', function() {
-    console.log('Refresh button clicked');
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (chrome.runtime.lastError) {
-        console.error('Error querying tabs:', chrome.runtime.lastError);
-        return;
-      }
-      
-      if (!tabs[0]) {
-        console.error('No active tab found');
-        return;
-      }
-      
-      // First inject the content script
-      chrome.scripting.executeScript({
-        target: { tabId: tabs[0].id },
-        files: ['content.js']
-      }).then(() => {
-        console.log('Content script injected successfully');
-        // Now send the smart refresh message
-        chrome.tabs.sendMessage(tabs[0].id, {action: 'smartRefresh'}, function(response) {
-          if (chrome.runtime.lastError) {
-            console.error('Error sending smartRefresh message:', chrome.runtime.lastError);
-          } else {
-            console.log('Smart refresh response:', response);
+        chrome.storage.local.get(['activeTabs'], function(result) {
+          const activeTabs = result.activeTabs || {};
+          if (!activeTabs[tabs[0].id]) {
+            updateStatus('Extension is not active on this tab', true);
+            return;
           }
+          
+          handler(tabs[0]);
         });
-      }).catch(err => {
-        console.error('Error injecting content script:', err);
+      });
+    };
+  }
+
+  startButton.addEventListener('click', wrapButtonHandler(function(tab) {
+    console.log('Start button clicked');
+    chrome.tabs.sendMessage(tab.id, {action: 'startLogging'}, function(response) {
+      if (chrome.runtime.lastError) {
+        console.error('Error sending startLogging message:', chrome.runtime.lastError);
+      } else {
+        console.log('Start logging response:', response);
+      }
+    });
+  }));
+
+  stopButton.addEventListener('click', wrapButtonHandler(function(tab) {
+    console.log('Stop button clicked');
+    chrome.tabs.sendMessage(tab.id, {action: 'stopLogging'}, function(response) {
+      if (chrome.runtime.lastError) {
+        console.error('Error sending stopLogging message:', chrome.runtime.lastError);
+      } else {
+        console.log('Stop logging response:', response);
+      }
+    });
+  }));
+
+  clearButton.addEventListener('click', wrapButtonHandler(function(tab) {
+    // Clear the events display first
+    const existingList = document.getElementById('events-list');
+    if (existingList) {
+      existingList.remove();
+    }
+    
+    // Send clear message to content script
+    chrome.tabs.sendMessage(tab.id, {action: 'clearEvents'}, function(response) {
+      if (chrome.runtime.lastError) {
+        updateStatus('Error: ' + chrome.runtime.lastError.message, true);
+        return;
+      }
+      
+      // Also clear from storage directly to ensure it's cleared
+      chrome.storage.local.remove(['savedEvents', 'initialUrl'], function() {
+        updateStatus('Events cleared successfully');
       });
     });
-  });
+  }));
+
+  smartRefreshButton.addEventListener('click', wrapButtonHandler(function(tab) {
+    console.log('Refresh button clicked');
+    // First inject the content script
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    }).then(() => {
+      console.log('Content script injected successfully');
+      // Now send the smart refresh message
+      chrome.tabs.sendMessage(tab.id, {action: 'smartRefresh'}, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error('Error sending smartRefresh message:', chrome.runtime.lastError);
+        } else {
+          console.log('Smart refresh response:', response);
+        }
+      });
+    }).catch(err => {
+      console.error('Error injecting content script:', err);
+    });
+  }));
 }); 
