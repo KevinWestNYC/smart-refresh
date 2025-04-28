@@ -40,7 +40,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (isLogging) {
       console.log('Logging already active');
       sendResponse({ status: 'already_logging' });
-      return;
+      return true;
     }
     
     isLogging = true;
@@ -97,12 +97,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }, true);
     
     sendResponse({ status: 'started' });
+    return true;
   }
   else if (message.action === 'stopLogging') {
     if (!isLogging) {
       console.log('Logging not active');
       sendResponse({ status: 'not_logging' });
-      return;
+      return true;
     }
     
     isLogging = false;
@@ -118,14 +119,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       status: 'stopped',
       events: loggedEvents
     });
+    return true;
   }
   else if (message.action === 'clearEvents') {
+    console.log('Clearing events...');
     loggedEvents = [];
-    chrome.storage.local.remove('savedEvents', function() {
-      console.log('Events cleared from storage');
+    
+    // Create a promise to handle the storage operation
+    new Promise((resolve) => {
+      chrome.storage.local.remove('savedEvents', () => {
+        console.log('Events cleared from storage');
+        resolve();
+      });
+    }).then(() => {
       sendResponse({ status: 'cleared' });
     });
-    return true;
+    
+    return true; // Keep the message channel open
   }
   else if (message.action === 'smartRefresh') {
     console.log('Received smart refresh request');
@@ -149,6 +159,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // Keep the message channel open
 });
 
+// Function to find the exact element by class and text
+function findElementByClassAndText(className, text) {
+  const elements = document.querySelectorAll(`.${className}`);
+  const targetText = text.trim().toLowerCase();
+  
+  for (const element of elements) {
+    const elementText = element.textContent.trim().toLowerCase();
+    if (elementText === targetText) {
+      return element;
+    }
+  }
+  return null;
+}
+
 // Function to replay events
 function replayEvents() {
   if (!loggedEvents || loggedEvents.length === 0) {
@@ -158,6 +182,8 @@ function replayEvents() {
 
   console.log('Starting to replay events...');
   let index = 0;
+  const MAX_RETRIES = 3; // Maximum number of retry attempts per event
+  const RETRY_DELAY = 2000; // Delay between retries in milliseconds
 
   function replayNextEvent() {
     if (index >= loggedEvents.length) {
@@ -173,8 +199,21 @@ function replayEvents() {
       let element;
       if (event.element.id) {
         element = document.getElementById(event.element.id);
+      } else if (event.element.class && event.element.text) {
+        // Use both class and text to find the exact element
+        element = findElementByClassAndText(event.element.class.split(' ')[0], event.element.text);
       } else if (event.element.class) {
         element = document.querySelector(`.${event.element.class.split(' ')[0]}`);
+      } else if (event.element.text) {
+        // If no class but we have text, try to find by tag + text
+        const elements = document.querySelectorAll(event.element.tag);
+        const targetText = event.element.text.trim().toLowerCase();
+        for (const el of elements) {
+          if (el.textContent.trim().toLowerCase() === targetText) {
+            element = el;
+            break;
+          }
+        }
       } else {
         element = document.querySelector(event.element.tag);
       }
@@ -190,9 +229,21 @@ function replayEvents() {
         }, 500);
       } else {
         console.log('Element not found for click event:', event);
-        // Move to next event even if element not found
-        index++;
-        setTimeout(replayNextEvent, 500);
+        // Check if we've exceeded max retries
+        if (event.retryCount === undefined) {
+          event.retryCount = 1;
+        } else {
+          event.retryCount++;
+        }
+        
+        if (event.retryCount <= MAX_RETRIES) {
+          console.log(`Retrying event (attempt ${event.retryCount}/${MAX_RETRIES})`);
+          setTimeout(replayNextEvent, RETRY_DELAY);
+        } else {
+          console.log('Max retries reached, stopping event replay');
+          return; // Stop the entire replay process
+        }
+        return;
       }
     } else if (event.type === 'input') {
       // Find the input element
@@ -201,6 +252,16 @@ function replayEvents() {
         element = document.getElementById(event.element.id);
       } else if (event.element.class) {
         element = document.querySelector(`.${event.element.class.split(' ')[0]}`);
+      } else if (event.element.text) {
+        // If no class but we have text, try to find by tag + text
+        const elements = document.querySelectorAll(`${event.element.tag}[type="${event.element.type}"]`);
+        const targetText = event.element.text.trim().toLowerCase();
+        for (const el of elements) {
+          if (el.value.trim().toLowerCase() === targetText) {
+            element = el;
+            break;
+          }
+        }
       } else {
         element = document.querySelector(`${event.element.tag}[type="${event.element.type}"]`);
       }
@@ -218,21 +279,33 @@ function replayEvents() {
         }, 500);
       } else {
         console.log('Element not found for input event:', event);
-        // Move to next event even if element not found
-        index++;
-        setTimeout(replayNextEvent, 500);
+        // Check if we've exceeded max retries
+        if (event.retryCount === undefined) {
+          event.retryCount = 1;
+        } else {
+          event.retryCount++;
+        }
+        
+        if (event.retryCount <= MAX_RETRIES) {
+          console.log(`Retrying event (attempt ${event.retryCount}/${MAX_RETRIES})`);
+          setTimeout(replayNextEvent, RETRY_DELAY);
+        } else {
+          console.log('Max retries reached, stopping event replay');
+          return; // Stop the entire replay process
+        }
+        return;
       }
     } else {
       // Move to next event for unknown event types
       index++;
-      setTimeout(replayNextEvent, 500);
+      // setTimeout(replayNextEvent, 500);
     }
   }
 
   // Add initial delay before starting to replay events
-  console.log('Waiting 2 seconds before starting event replay...');
-  setTimeout(() => {
-    console.log('Starting event replay after initial delay');
+  // console.log('Waiting 8 seconds before starting event replay...');
+  // setTimeout(() => {
+  //   console.log('Starting event replay after initial delay');
     replayNextEvent();
-  }, 2000);
+//   }, 3000);
 } 
