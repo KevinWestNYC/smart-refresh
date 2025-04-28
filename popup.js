@@ -129,21 +129,23 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
-      chrome.runtime.sendMessage({
-        action: 'clearEvents',
-        tabId: tabs[0].id
-      }, function(response) {
+      // Clear the events display first
+      const existingList = document.getElementById('events-list');
+      if (existingList) {
+        existingList.remove();
+      }
+      
+      // Send clear message to content script
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'clearEvents'}, function(response) {
         if (chrome.runtime.lastError) {
           updateStatus('Error: ' + chrome.runtime.lastError.message, true);
           return;
         }
-        updateStatus('Events cleared successfully');
         
-        // Clear the events display
-        const existingList = document.getElementById('events-list');
-        if (existingList) {
-          existingList.remove();
-        }
+        // Also clear from storage directly to ensure it's cleared
+        chrome.storage.local.remove(['savedEvents', 'initialUrl'], function() {
+          updateStatus('Events cleared successfully');
+        });
       });
     });
   });
@@ -161,13 +163,22 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
-      console.log('Sending smartRefresh message to tab:', tabs[0].id);
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'smartRefresh'}, function(response) {
-        if (chrome.runtime.lastError) {
-          console.error('Error sending smartRefresh message:', chrome.runtime.lastError);
-        } else {
-          console.log('Smart refresh response:', response);
-        }
+      // First inject the content script
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        files: ['content.js']
+      }).then(() => {
+        console.log('Content script injected successfully');
+        // Now send the smart refresh message
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'smartRefresh'}, function(response) {
+          if (chrome.runtime.lastError) {
+            console.error('Error sending smartRefresh message:', chrome.runtime.lastError);
+          } else {
+            console.log('Smart refresh response:', response);
+          }
+        });
+      }).catch(err => {
+        console.error('Error injecting content script:', err);
       });
     });
   });

@@ -1,3 +1,29 @@
+// Listen for new tab creation
+chrome.tabs.onCreated.addListener(function(tab) {
+  console.log('New tab created:', tab.id);
+  // Only inject if it's not a restricted page
+  if (!tab.url.startsWith('chrome://')) {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    }).catch(err => {
+      console.error('Error injecting script into new tab:', err);
+    });
+  }
+});
+
+// Listen for tab updates to inject content script when navigating to non-restricted pages
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+  if (changeInfo.status === 'complete' && !tab.url.startsWith('chrome://')) {
+    chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['content.js']
+    }).catch(err => {
+      console.error('Error injecting script after navigation:', err);
+    });
+  }
+});
+
 // Listen for messages from popup and content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Background script received message:', message);
@@ -73,15 +99,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               // Remove the listener to prevent multiple injections
               chrome.tabs.onUpdated.removeListener(listener);
               
-              // Inject content script after page is fully loaded
-              chrome.scripting.executeScript({
-                target: { tabId: sender.tab.id },
-                files: ['content.js']
-              }, function() {
-                if (chrome.runtime.lastError) {
-                  console.error('Error injecting content script after refresh:', chrome.runtime.lastError);
-                } else {
-                  console.log('Content script injected after page load');
+              // Only inject if it's not a restricted page
+              chrome.tabs.get(sender.tab.id, function(tab) {
+                if (!tab.url.startsWith('chrome://')) {
+                  chrome.scripting.executeScript({
+                    target: { tabId: sender.tab.id },
+                    files: ['content.js']
+                  }, function() {
+                    if (chrome.runtime.lastError) {
+                      console.error('Error injecting content script after refresh:', chrome.runtime.lastError);
+                    } else {
+                      console.log('Content script injected after page load');
+                    }
+                  });
                 }
               });
             }
