@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Browser Event Logger</title>
+  <style>
+    body {
+      width: 200px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+    button {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 10px;
+      font-size: 12px;
+      text-align: center;
+    }
+    #smartRefresh {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <button id="start">Start Logging</button>
+  <button id="stop">Stop Logging</button>
+  <button id="clear">Clear Events</button>
+  <button id="smartRefresh">Smart Refresh</button>
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html> 
