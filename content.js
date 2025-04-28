@@ -237,8 +237,11 @@ function replayEvents() {
 
   console.log('Starting to replay events...');
   let index = 0;
-  const MAX_RETRIES = 3; // Maximum number of retry attempts per event
-  const RETRY_DELAY = 2000; // Delay between retries in milliseconds
+  const MAX_RETRIES = 10;
+  const RETRY_DELAY = 1000;
+  const FIRST_EVENT_TIMEOUT = 3000; // 3 seconds timeout for first event
+  const FIRST_EVENT_RETRY_INTERVAL = 200; // Try every 200ms for first event
+  let firstEventStartTime = Date.now();
 
   function replayNextEvent() {
     if (index >= loggedEvents.length) {
@@ -255,12 +258,10 @@ function replayEvents() {
       if (event.element.id) {
         element = document.getElementById(event.element.id);
       } else if (event.element.class && event.element.text) {
-        // Use both class and text to find the exact element
         element = findElementByClassAndText(event.element.class.split(' ')[0], event.element.text);
       } else if (event.element.class) {
         element = document.querySelector(`.${event.element.class.split(' ')[0]}`);
       } else if (event.element.text) {
-        // If no class but we have text, try to find by tag + text
         const elements = document.querySelectorAll(event.element.tag);
         const targetText = event.element.text.trim().toLowerCase();
         for (const el of elements) {
@@ -275,16 +276,33 @@ function replayEvents() {
 
       if (element) {
         console.log('Clicking element:', element);
-        // Add a small delay before clicking
-        setTimeout(() => {
-          element.click();
-          // Move to next event after click
-          index++;
+        element.click();
+        index++;
+        // For first event, move to next immediately
+        if (index === 1) {
+          replayNextEvent();
+        } else {
           setTimeout(replayNextEvent, 1000);
-        }, 500);
+        }
       } else {
         console.log('Element not found for click event:', event);
-        // Check if we've exceeded max retries
+        
+        // Special handling for first event
+        if (index === 0) {
+          const timeElapsed = Date.now() - firstEventStartTime;
+          if (timeElapsed < FIRST_EVENT_TIMEOUT) {
+            console.log(`Retrying first event in ${FIRST_EVENT_RETRY_INTERVAL}ms (${timeElapsed}ms elapsed)`);
+            setTimeout(replayNextEvent, FIRST_EVENT_RETRY_INTERVAL);
+            return;
+          } else {
+            console.log('First event timeout reached, moving to next event');
+            index++;
+            setTimeout(replayNextEvent, 1000);
+            return;
+          }
+        }
+        
+        // Normal retry handling for other events
         if (event.retryCount === undefined) {
           event.retryCount = 1;
         } else {
@@ -296,7 +314,7 @@ function replayEvents() {
           setTimeout(replayNextEvent, RETRY_DELAY);
         } else {
           console.log('Max retries reached, moving to next event');
-          index++; // Move to next event instead of stopping
+          index++;
           setTimeout(replayNextEvent, 1000);
         }
         return;
@@ -353,16 +371,10 @@ function replayEvents() {
         return;
       }
     } else {
-      // Move to next event for unknown event types
       index++;
-      // setTimeout(replayNextEvent, 500);
+      setTimeout(replayNextEvent, 1000);
     }
   }
 
-  // Add initial delay before starting to replay events
-  // console.log('Waiting 8 seconds before starting event replay...');
-  // setTimeout(() => {
-  //   console.log('Starting event replay after initial delay');
-    replayNextEvent();
-//   }, 3000);
+  replayNextEvent();
 } 
