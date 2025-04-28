@@ -65,6 +65,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.error('Error refreshing tab:', chrome.runtime.lastError);
         } else {
           console.log('Tab refreshed successfully');
+          
+          // Listen for tab update complete
+          chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
+            if (tabId === sender.tab.id && changeInfo.status === 'complete') {
+              console.log('Page fully loaded after refresh');
+              // Remove the listener to prevent multiple injections
+              chrome.tabs.onUpdated.removeListener(listener);
+              
+              // Inject content script after page is fully loaded
+              chrome.scripting.executeScript({
+                target: { tabId: sender.tab.id },
+                files: ['content.js']
+              }, function() {
+                if (chrome.runtime.lastError) {
+                  console.error('Error injecting content script after refresh:', chrome.runtime.lastError);
+                } else {
+                  console.log('Content script injected after page load');
+                }
+              });
+            }
+          });
         }
       });
     });

@@ -9,15 +9,27 @@ function loadAndReplayEvents() {
       loggedEvents = result.savedEvents;
       console.log('Loaded saved events:', loggedEvents);
       
+      // Reset retry counts for all events
+      loggedEvents.forEach(event => {
+        delete event.retryCount;
+      });
+      
       // Wait for page to be fully loaded before replaying events
       if (document.readyState === 'complete') {
-        console.log('Page already loaded, replaying events immediately');
-        replayEvents();
+        console.log('Page already loaded, waiting before replaying events');
+        // Add a delay before replaying to ensure page is fully ready
+        setTimeout(() => {
+          console.log('Starting event replay after delay');
+          replayEvents();
+        }, 2000); // Wait 2 seconds before replaying
       } else {
         console.log('Waiting for page load before replaying events');
         window.addEventListener('load', function() {
-          console.log('Page loaded, starting event replay');
-          replayEvents();
+          console.log('Page loaded, waiting before starting event replay');
+          setTimeout(() => {
+            console.log('Starting event replay after delay');
+            replayEvents();
+          }, 2000); // Wait 2 seconds after page load
         });
       }
     } else {
@@ -26,11 +38,11 @@ function loadAndReplayEvents() {
   });
 }
 
-// Load events when content script is injected
-loadAndReplayEvents();
-
 // Log when content script is injected
 console.log('Content script injected and running');
+
+// Load events when content script is injected
+loadAndReplayEvents();
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -240,8 +252,9 @@ function replayEvents() {
           console.log(`Retrying event (attempt ${event.retryCount}/${MAX_RETRIES})`);
           setTimeout(replayNextEvent, RETRY_DELAY);
         } else {
-          console.log('Max retries reached, stopping event replay');
-          return; // Stop the entire replay process
+          console.log('Max retries reached, moving to next event');
+          index++; // Move to next event instead of stopping
+          setTimeout(replayNextEvent, 1000);
         }
         return;
       }
@@ -290,8 +303,9 @@ function replayEvents() {
           console.log(`Retrying event (attempt ${event.retryCount}/${MAX_RETRIES})`);
           setTimeout(replayNextEvent, RETRY_DELAY);
         } else {
-          console.log('Max retries reached, stopping event replay');
-          return; // Stop the entire replay process
+          console.log('Max retries reached, moving to next event');
+          index++; // Move to next event instead of stopping
+          setTimeout(replayNextEvent, 1000);
         }
         return;
       }
