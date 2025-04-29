@@ -4,7 +4,7 @@
   <title>Browser Event Logger</title>
   <style>
     body {
-      width: 200px;
+      width: 300px;
       padding: 10px;
       font-family: Arial, sans-serif;
     }
@@ -75,6 +75,67 @@
     input:checked + .toggle-slider:before {
       transform: translateX(20px);
     }
+    /* New styles for flow management */
+    .flow-management {
+      margin-top: 15px;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+    }
+    .flow-selector {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .flow-selector select {
+      flex-grow: 1;
+      padding: 5px;
+      margin-right: 5px;
+    }
+    .flow-actions {
+      display: flex;
+      gap: 5px;
+    }
+    .flow-actions button {
+      padding: 5px 10px;
+      width: auto;
+    }
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+    .modal-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      width: 80%;
+      max-width: 300px;
+    }
+    .modal-content input {
+      width: 100%;
+      padding: 8px;
+      margin: 10px 0;
+      box-sizing: border-box;
+    }
+    .modal-content button {
+      margin: 5px;
+      width: auto;
+    }
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -90,6 +151,30 @@
   <button id="clear">Clear Events</button>
   <button id="smartRefresh">Smart Refresh</button>
   <div id="status"></div>
+
+  <div class="flow-management">
+    <div class="flow-selector">
+      <select id="flowList"></select>
+      <div class="flow-actions">
+        <button id="refreshFlow">r</button>
+        <button id="renameFlow">e</button>
+        <button id="deleteFlow">d</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for naming flows -->
+  <div id="nameFlowModal" class="modal">
+    <div class="modal-content">
+      <h3>Name Your Flow</h3>
+      <input type="text" id="flowName" placeholder="Enter flow name">
+      <div class="modal-buttons">
+        <button id="cancelFlowName">Cancel</button>
+        <button id="saveFlowName">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html> 
