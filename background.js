@@ -15,11 +15,17 @@ chrome.tabs.onCreated.addListener(function(tab) {
 // Listen for tab updates to inject content script when navigating to non-restricted pages
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   if (changeInfo.status === 'complete' && !tab.url.startsWith('chrome://')) {
-    chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      files: ['content.js']
-    }).catch(err => {
-      console.error('Error injecting script after navigation:', err);
+    console.log('Tab updated, checking for replay flag');
+    chrome.storage.local.get(['shouldReplayEvents'], function(result) {
+      if (result.shouldReplayEvents) {
+        console.log('Replay flag found, injecting content script');
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        }).catch(err => {
+          console.error('Error injecting script after navigation:', err);
+        });
+      }
     });
   }
 });

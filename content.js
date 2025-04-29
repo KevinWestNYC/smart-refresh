@@ -29,26 +29,36 @@ function loadAndReplayEvents() {
         // Check if we need to navigate to the initial URL
         if (initialUrl && window.location.href !== initialUrl) {
           console.log('Navigating to initial URL:', initialUrl);
-          window.location.href = initialUrl;
-          return; // Stop here, the page reload will trigger the replay
+          // Save the events and URL before navigation
+          chrome.storage.local.set({ 
+            savedEvents: loggedEvents,
+            initialUrl: initialUrl,
+            shouldReplayEvents: true // Keep this true for the new page
+          }, function() {
+            console.log('Saved events and URL before navigation');
+            window.location.href = initialUrl;
+          });
+          return;
         }
         
-        // Wait for page to be fully loaded before replaying events
-        if (document.readyState === 'complete') {
-          console.log('Page already loaded, waiting before replaying events');
-          // Add a delay before replaying to ensure page is fully ready
+        // Function to start replay after page is ready
+        function startReplay() {
+          console.log('Page is ready, starting replay');
           setTimeout(() => {
             console.log('Starting event replay after delay');
             replayEvents();
           }, 2000);
+        }
+        
+        // Check if page is already loaded
+        if (document.readyState === 'complete') {
+          console.log('Page already loaded, starting replay');
+          startReplay();
         } else {
           console.log('Waiting for page load before replaying events');
           window.addEventListener('load', function() {
-            console.log('Page loaded, waiting before starting event replay');
-            setTimeout(() => {
-              console.log('Starting event replay after delay');
-              replayEvents();
-            }, 2000);
+            console.log('Page loaded, starting replay');
+            startReplay();
           });
         }
       } else {
