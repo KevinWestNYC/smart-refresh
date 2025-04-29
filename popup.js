@@ -275,9 +275,11 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    if (currentFlowId && flows[currentFlowId]) {
+    // Only rename if we're in rename mode (currentFlowId exists and we're not creating a new flow)
+    if (currentFlowId && flows[currentFlowId] && !isCreatingNewFlow) {
       renameFlow(currentFlowId, name);
     } else {
+      // Create new flow
       chrome.storage.local.get(['savedEvents', 'initialUrl'], function(result) {
         if (result.savedEvents && result.initialUrl) {
           saveFlow(name, result.savedEvents, result.initialUrl);
