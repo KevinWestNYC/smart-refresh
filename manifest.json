@@ -1,17 +1,20 @@
 {
   "manifest_version": 3,
-  "name": "Browser Event Logger",
+  "name": "SQSP Smart Refresh",
   "version": "1.0",
-  "description": "Logs browser events like clicks and input changes",
+  "description": "Record and replay browser events for an easy development experience",
   "permissions": [
-    "activeTab",
-    "scripting",
     "storage",
-    "tabs"
+    "scripting",
+    "activeTab"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
+  "web_accessible_resources": [{
+    "resources": ["fonts/*"],
+    "matches": ["<all_urls>"]
+  }],
   "action": {
     "default_popup": "popup.html"
   },

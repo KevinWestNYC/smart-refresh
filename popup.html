@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Browser Event Logger</title>
+  <title>SQSP Smart Refresh</title>
   <style>
+    @font-face {
+      font-family: 'Clarkson';
+      src: url('fonts/Clarkson-Medium.woff2') format('woff2'),
+           url('fonts/Clarkson-MediumTT.woff') format('woff'),
+           url('fonts/Clarkson-Medium.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
     body {
       width: 300px;
       padding: 10px;
-      font-family: Arial, sans-serif;
+      font-family: 'Clarkson', Arial, sans-serif;
     }
     button {
       padding: 8px;
@@ -144,25 +154,25 @@
       gap: 5px;
     }
     #createNewFlow {
-      background-color: #2196F3;
+      background-color: #454545;
       color: white;
       border: none;
       width: 100%;
     }
     #start {
-      background-color: #f44336;
+      background-color: #DB3642;
       color: white;
       border: none;
       flex: 1;
     }
     #stop {
-      background-color: #4CAF50;
+      background-color: #1B754F;
       color: white;
       border: none;
       flex: 1;
     }
     #cancelNewFlow {
-      background-color: #9e9e9e;
+      background-color: #B7B7B7;
       color: white;
       border: none;
       width: 60px;
