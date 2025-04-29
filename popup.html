@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>SQSP Smart Refresh</title>
   <style>
@@ -180,41 +180,55 @@
     #clear, #smartRefresh {
       display: none;
     }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
   </style>
 </head>
 <body>
-  <button id="createNewFlow">Create New Flow +</button>
+  <h1 class="sr-only">SQSP Smart Refresh</h1>
   
-  <div class="main-buttons">
+  <button id="createNewFlow" aria-label="Create new flow">Create New Flow +</button>
+  
+  <div class="main-buttons" role="region" aria-label="Recording controls">
     <div class="recording-controls">
-      <button id="start">Record</button>
-      <button id="stop">Stop</button>
-      <button id="cancelNewFlow">Cancel</button>
+      <button id="start" aria-label="Start recording">Record</button>
+      <button id="stop" aria-label="Stop recording">Stop</button>
+      <button id="cancelNewFlow" aria-label="Cancel flow creation">Cancel</button>
     </div>
-    <button id="clear" style="display: none;">Clear Events</button>
-    <button id="smartRefresh" style="display: none;">Smart Refresh</button>
+    <button id="clear" style="display: none;" aria-label="Clear events">Clear Events</button>
+    <button id="smartRefresh" style="display: none;" aria-label="Smart refresh">Smart Refresh</button>
   </div>
-  <div id="status"></div>
+  
+  <div id="status" role="status" aria-live="polite"></div>
 
-  <div class="flow-management">
+  <div class="flow-management" role="region" aria-label="Flow management">
     <div class="flow-selector">
-      <select id="flowList"></select>
+      <select id="flowList" aria-label="Select flow"></select>
       <div class="flow-actions">
-        <button id="refreshFlow">r</button>
-        <button id="renameFlow">e</button>
-        <button id="deleteFlow">d</button>
+        <button id="refreshFlow" aria-label="Refresh flow">r</button>
+        <button id="renameFlow" aria-label="Rename flow">e</button>
+        <button id="deleteFlow" aria-label="Delete flow">d</button>
       </div>
     </div>
   </div>
 
   <!-- Modal for naming flows -->
-  <div id="nameFlowModal" class="modal">
+  <div id="nameFlowModal" class="modal" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
     <div class="modal-content">
-      <h3>Name Your Flow</h3>
-      <input type="text" id="flowName" placeholder="Enter flow name">
+      <h3 id="modalTitle">Name Your Flow</h3>
+      <input type="text" id="flowName" placeholder="Enter flow name" aria-label="Flow name">
       <div class="modal-buttons">
-        <button id="cancelFlowName">Cancel</button>
-        <button id="saveFlowName">Save</button>
+        <button id="cancelFlowName" aria-label="Cancel naming flow">Cancel</button>
+        <button id="saveFlowName" aria-label="Save flow name">Save</button>
       </div>
     </div>
   </div>
