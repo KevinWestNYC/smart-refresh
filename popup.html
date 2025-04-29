@@ -9,7 +9,6 @@
       font-family: Arial, sans-serif;
     }
     button {
-      width: 100%;
       padding: 8px;
       margin: 5px 0;
       cursor: pointer;
@@ -134,15 +133,42 @@
       justify-content: flex-end;
       margin-top: 10px;
     }
-    /* New styles for main buttons */
+    /* New styles for recording interface */
     .main-buttons {
       display: none;
       margin-top: 10px;
+    }
+    .recording-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
     #createNewFlow {
       background-color: #2196F3;
       color: white;
       border: none;
+      width: 100%;
+    }
+    #start {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      flex: 1;
+    }
+    #stop {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      flex: 1;
+    }
+    #cancelNewFlow {
+      background-color: #9e9e9e;
+      color: white;
+      border: none;
+      width: 60px;
+    }
+    #clear, #smartRefresh {
+      display: none;
     }
   </style>
 </head>
@@ -150,10 +176,13 @@
   <button id="createNewFlow">Create New Flow +</button>
   
   <div class="main-buttons">
-    <button id="start">Start Logging</button>
-    <button id="stop">Stop Logging</button>
-    <button id="clear">Clear Events</button>
-    <button id="smartRefresh">Smart Refresh</button>
+    <div class="recording-controls">
+      <button id="start">Record</button>
+      <button id="stop">Stop</button>
+      <button id="cancelNewFlow">Cancel</button>
+    </div>
+    <button id="clear" style="display: none;">Clear Events</button>
+    <button id="smartRefresh" style="display: none;">Smart Refresh</button>
   </div>
   <div id="status"></div>
 

@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const saveFlowNameButton = document.getElementById('saveFlowName');
   const cancelFlowNameButton = document.getElementById('cancelFlowName');
   const createNewFlowButton = document.getElementById('createNewFlow');
+  const cancelNewFlowButton = document.getElementById('cancelNewFlow');
   const mainButtons = document.querySelector('.main-buttons');
 
   let currentFlowId = null;
@@ -84,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function showMainButtons() {
     mainButtons.style.display = 'block';
+    createNewFlowButton.style.display = 'none';
     isCreatingNewFlow = true;
     updateButtonStates();
     chrome.storage.local.set({ isCreatingNewFlow: true });
@@ -91,6 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function hideMainButtons() {
     mainButtons.style.display = 'none';
+    createNewFlowButton.style.display = 'block';
     isCreatingNewFlow = false;
     updateButtonStates();
     chrome.storage.local.set({ isCreatingNewFlow: false });
@@ -181,8 +184,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Handle create new flow button
   createNewFlowButton.addEventListener('click', function() {
-    showMainButtons();
-    updateStatus('Ready to create new flow');
+    if (isCreatingNewFlow) {
+      hideMainButtons();
+    } else {
+      showMainButtons();
+      updateStatus('Ready to create new flow');
+    }
+  });
+
+  // Handle cancel new flow button
+  cancelNewFlowButton.addEventListener('click', function() {
+    hideMainButtons();
+    updateStatus('Flow creation cancelled');
   });
 
   // Handle flow selection
@@ -281,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  // Handle stop button
   stopButton.addEventListener('click', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       if (!tabs[0]) {
@@ -295,6 +309,8 @@ document.addEventListener('DOMContentLoaded', function() {
           console.log('Stop logging response:', response);
           if (response && response.events && response.events.length > 0) {
             showNameFlowModal();
+          } else {
+            hideMainButtons();
           }
         }
       });
