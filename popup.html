@@ -78,8 +78,6 @@
     /* New styles for flow management */
     .flow-management {
       margin-top: 15px;
-      border-top: 1px solid #ccc;
-      padding-top: 10px;
     }
     .flow-selector {
       display: flex;
@@ -136,20 +134,27 @@
       justify-content: flex-end;
       margin-top: 10px;
     }
+    /* New styles for main buttons */
+    .main-buttons {
+      display: none;
+      margin-top: 10px;
+    }
+    #createNewFlow {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+    }
   </style>
 </head>
 <body>
-  <div class="toggle-container">
-    <span class="toggle-label">Active on this tab</span>
-    <label class="toggle-switch">
-      <input type="checkbox" id="tabToggle">
-      <span class="toggle-slider"></span>
-    </label>
+  <button id="createNewFlow">Create New Flow +</button>
+  
+  <div class="main-buttons">
+    <button id="start">Start Logging</button>
+    <button id="stop">Stop Logging</button>
+    <button id="clear">Clear Events</button>
+    <button id="smartRefresh">Smart Refresh</button>
   </div>
-  <button id="start">Start Logging</button>
-  <button id="stop">Stop Logging</button>
-  <button id="clear">Clear Events</button>
-  <button id="smartRefresh">Smart Refresh</button>
   <div id="status"></div>
 
   <div class="flow-management">

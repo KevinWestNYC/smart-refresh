@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const clearButton = document.getElementById('clear');
   const smartRefreshButton = document.getElementById('smartRefresh');
   const statusDiv = document.getElementById('status');
-  const tabToggle = document.getElementById('tabToggle');
   const flowList = document.getElementById('flowList');
   const refreshFlowButton = document.getElementById('refreshFlow');
   const renameFlowButton = document.getElementById('renameFlow');
@@ -15,9 +14,12 @@ document.addEventListener('DOMContentLoaded', function() {
   const flowNameInput = document.getElementById('flowName');
   const saveFlowNameButton = document.getElementById('saveFlowName');
   const cancelFlowNameButton = document.getElementById('cancelFlowName');
+  const createNewFlowButton = document.getElementById('createNewFlow');
+  const mainButtons = document.querySelector('.main-buttons');
 
   let currentFlowId = null;
   let flows = {};
+  let isCreatingNewFlow = false;
 
   function updateStatus(message, isError = false) {
     statusDiv.textContent = message;
@@ -80,9 +82,31 @@ document.addEventListener('DOMContentLoaded', function() {
     nameFlowModal.style.display = 'none';
   }
 
+  function showMainButtons() {
+    mainButtons.style.display = 'block';
+    isCreatingNewFlow = true;
+    updateButtonStates();
+    chrome.storage.local.set({ isCreatingNewFlow: true });
+  }
+
+  function hideMainButtons() {
+    mainButtons.style.display = 'none';
+    isCreatingNewFlow = false;
+    updateButtonStates();
+    chrome.storage.local.set({ isCreatingNewFlow: false });
+  }
+
   function loadFlows() {
-    chrome.storage.local.get(['flows'], function(result) {
+    chrome.storage.local.get(['flows', 'isCreatingNewFlow'], function(result) {
       flows = result.flows || {};
+      isCreatingNewFlow = result.isCreatingNewFlow || false;
+      
+      if (isCreatingNewFlow) {
+        showMainButtons();
+      } else {
+        hideMainButtons();
+      }
+      
       updateFlowList();
     });
   }
@@ -116,6 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
       currentFlowId = flowId;
       updateFlowList();
       updateStatus('Flow saved successfully');
+      hideMainButtons();
     });
   }
 
@@ -144,60 +169,26 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Load saved flows when popup opens
-  loadFlows();
-
-  // Load saved toggle state for current tab
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    if (!tabs[0]) return;
-    
-    chrome.storage.local.get(['activeTabs'], function(result) {
-      const activeTabs = result.activeTabs || {};
-      tabToggle.checked = activeTabs[tabs[0].id] || false;
-      updateButtonStates(tabToggle.checked);
-    });
-  });
-
-  function updateButtonStates(isActive) {
-    startButton.disabled = !isActive;
-    stopButton.disabled = !isActive;
-    clearButton.disabled = !isActive;
-    smartRefreshButton.disabled = !isActive;
-    refreshFlowButton.disabled = !isActive || !currentFlowId;
-    renameFlowButton.disabled = !isActive || !currentFlowId;
-    deleteFlowButton.disabled = !isActive || !currentFlowId;
+  function updateButtonStates() {
+    const hasSelectedFlow = currentFlowId && flows[currentFlowId];
+    refreshFlowButton.disabled = !hasSelectedFlow;
+    renameFlowButton.disabled = !hasSelectedFlow;
+    deleteFlowButton.disabled = !hasSelectedFlow;
   }
 
-  // Handle toggle changes
-  tabToggle.addEventListener('change', function() {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (!tabs[0]) return;
-      
-      chrome.storage.local.get(['activeTabs'], function(result) {
-        const activeTabs = result.activeTabs || {};
-        activeTabs[tabs[0].id] = tabToggle.checked;
-        
-        chrome.storage.local.set({ activeTabs: activeTabs }, function() {
-          console.log('Tab active state updated:', activeTabs);
-          updateButtonStates(tabToggle.checked);
-          
-          if (tabToggle.checked) {
-            chrome.scripting.executeScript({
-              target: { tabId: tabs[0].id },
-              files: ['content.js']
-            }).catch(err => {
-              console.error('Error injecting content script:', err);
-            });
-          }
-        });
-      });
-    });
+  // Load saved flows and state when popup opens
+  loadFlows();
+
+  // Handle create new flow button
+  createNewFlowButton.addEventListener('click', function() {
+    showMainButtons();
+    updateStatus('Ready to create new flow');
   });
 
   // Handle flow selection
   flowList.addEventListener('change', function() {
     currentFlowId = this.value;
-    updateButtonStates(tabToggle.checked);
+    updateButtonStates();
   });
 
   // Handle flow refresh
@@ -208,18 +199,15 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       if (!tabs[0]) return;
       
-      // First inject the content script
       chrome.scripting.executeScript({
         target: { tabId: tabs[0].id },
         files: ['content.js']
       }).then(() => {
-        // Save the flow data to storage
         chrome.storage.local.set({
           savedEvents: flow.events,
           initialUrl: flow.initialUrl,
           shouldReplayEvents: true
         }, function() {
-          // Send the smart refresh message
           chrome.tabs.sendMessage(tabs[0].id, {action: 'smartRefresh'}, function(response) {
             if (chrome.runtime.lastError) {
               console.error('Error sending smartRefresh message:', chrome.runtime.lastError);
@@ -260,7 +248,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (currentFlowId && flows[currentFlowId]) {
       renameFlow(currentFlowId, name);
     } else {
-      // This should only happen after stopping logging
       chrome.storage.local.get(['savedEvents', 'initialUrl'], function(result) {
         if (result.savedEvents && result.initialUrl) {
           saveFlow(name, result.savedEvents, result.initialUrl);
@@ -275,87 +262,86 @@ document.addEventListener('DOMContentLoaded', function() {
 
   cancelFlowNameButton.addEventListener('click', hideNameFlowModal);
 
-  // Modify each button click handler to check if tab is active
-  function wrapButtonHandler(handler) {
-    return function() {
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (!tabs[0]) {
-          updateStatus('No active tab found', true);
-          return;
-        }
-        
-        chrome.storage.local.get(['activeTabs'], function(result) {
-          const activeTabs = result.activeTabs || {};
-          if (!activeTabs[tabs[0].id]) {
-            updateStatus('Extension is not active on this tab', true);
-            return;
-          }
-          
-          handler(tabs[0]);
-        });
-      });
-    };
-  }
-
-  startButton.addEventListener('click', wrapButtonHandler(function(tab) {
-    console.log('Start button clicked');
-    chrome.tabs.sendMessage(tab.id, {action: 'startLogging'}, function(response) {
-      if (chrome.runtime.lastError) {
-        console.error('Error sending startLogging message:', chrome.runtime.lastError);
-      } else {
-        console.log('Start logging response:', response);
-      }
-    });
-  }));
-
-  stopButton.addEventListener('click', wrapButtonHandler(function(tab) {
-    console.log('Stop button clicked');
-    chrome.tabs.sendMessage(tab.id, {action: 'stopLogging'}, function(response) {
-      if (chrome.runtime.lastError) {
-        console.error('Error sending stopLogging message:', chrome.runtime.lastError);
-      } else {
-        console.log('Stop logging response:', response);
-        if (response && response.events && response.events.length > 0) {
-          showNameFlowModal();
-        }
-      }
-    });
-  }));
-
-  clearButton.addEventListener('click', wrapButtonHandler(function(tab) {
-    const existingList = document.getElementById('events-list');
-    if (existingList) {
-      existingList.remove();
-    }
-    
-    chrome.tabs.sendMessage(tab.id, {action: 'clearEvents'}, function(response) {
-      if (chrome.runtime.lastError) {
-        updateStatus('Error: ' + chrome.runtime.lastError.message, true);
+  // Handle main buttons
+  startButton.addEventListener('click', function() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (!tabs[0]) {
+        updateStatus('No active tab found', true);
         return;
       }
       
-      chrome.storage.local.remove(['savedEvents', 'initialUrl'], function() {
-        updateStatus('Events cleared successfully');
-      });
-    });
-  }));
-
-  smartRefreshButton.addEventListener('click', wrapButtonHandler(function(tab) {
-    console.log('Refresh button clicked');
-    chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['content.js']
-    }).then(() => {
-      console.log('Content script injected successfully');
-      chrome.tabs.sendMessage(tab.id, {action: 'smartRefresh'}, function(response) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'startLogging'}, function(response) {
         if (chrome.runtime.lastError) {
-          console.error('Error sending smartRefresh message:', chrome.runtime.lastError);
+          console.error('Error sending startLogging message:', chrome.runtime.lastError);
         } else {
-          console.log('Smart refresh response:', response);
+          console.log('Start logging response:', response);
+          updateStatus('Logging started');
         }
       });
-    }).catch(err => {
-      console.error('Error injecting content script:', err);
     });
-  }));
+  });
+
+  stopButton.addEventListener('click', function() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (!tabs[0]) {
+        updateStatus('No active tab found', true);
+        return;
+      }
+      
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'stopLogging'}, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error('Error sending stopLogging message:', chrome.runtime.lastError);
+        } else {
+          console.log('Stop logging response:', response);
+          if (response && response.events && response.events.length > 0) {
+            showNameFlowModal();
+          }
+        }
+      });
+    });
+  });
+
+  clearButton.addEventListener('click', function() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (!tabs[0]) {
+        updateStatus('No active tab found', true);
+        return;
+      }
+      
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'clearEvents'}, function(response) {
+        if (chrome.runtime.lastError) {
+          updateStatus('Error: ' + chrome.runtime.lastError.message, true);
+          return;
+        }
+        
+        chrome.storage.local.remove(['savedEvents', 'initialUrl'], function() {
+          updateStatus('Events cleared successfully');
+        });
+      });
+    });
+  });
+
+  smartRefreshButton.addEventListener('click', function() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (!tabs[0]) {
+        updateStatus('No active tab found', true);
+        return;
+      }
+      
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        files: ['content.js']
+      }).then(() => {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'smartRefresh'}, function(response) {
+          if (chrome.runtime.lastError) {
+            console.error('Error sending smartRefresh message:', chrome.runtime.lastError);
+          } else {
+            console.log('Smart refresh response:', response);
+          }
+        });
+      }).catch(err => {
+        console.error('Error injecting content script:', err);
+      });
+    });
+  });
 }); 
