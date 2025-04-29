@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
   <title>SQSP Smart Refresh</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     @font-face {
       font-family: 'Clarkson';
       src: url('fonts/Clarkson-Medium.woff2') format('woff2'),
-           url('fonts/Clarkson-MediumTT.woff') format('woff'),
-           url('fonts/Clarkson-Medium.ttf') format('truetype');
+           url('fonts/Clarkson-Medium.woff') format('woff'),
+           url('fonts/ClarksonTT-Medium.ttf') format('truetype');
       font-weight: normal;
       font-style: normal;
       font-display: swap;
@@ -15,11 +16,11 @@
 
     body {
       width: 300px;
-      padding: 10px;
+      padding: 2px;
       font-family: 'Clarkson', Arial, sans-serif;
     }
     button {
-      padding: 8px;
+      padding: 4px;
       margin: 5px 0;
       cursor: pointer;
     }
@@ -105,6 +106,14 @@
     .flow-actions button {
       padding: 5px 10px;
       width: auto;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #454545;
+      font-size: 16px;
+    }
+    .flow-actions button:hover {
+      color: #DB3642;
     }
     /* Modal styles */
     .modal {
@@ -117,6 +126,10 @@
       background-color: rgba(0,0,0,0.5);
       z-index: 1000;
     }
+
+    #modal-title {
+      margin: 8px 0;
+    }
     .modal-content {
       position: absolute;
       top: 50%;
@@ -126,12 +139,12 @@
       padding: 20px;
       border-radius: 5px;
       width: 80%;
+      height:66%;
       max-width: 300px;
     }
     .modal-content input {
       width: 100%;
-      padding: 8px;
-      margin: 10px 0;
+      padding: 6px;
       box-sizing: border-box;
     }
     .modal-content button {
@@ -141,7 +154,6 @@
     .modal-buttons {
       display: flex;
       justify-content: flex-end;
-      margin-top: 10px;
     }
     /* New styles for recording interface */
     .main-buttons {
@@ -153,29 +165,24 @@
       align-items: center;
       gap: 5px;
     }
-    #createNewFlow {
-      background-color: #454545;
-      color: white;
+    .recording-controls button {
+      background: none;
       border: none;
-      width: 100%;
+      cursor: pointer;
+      color: #454545;
+      font-size: 16px;
+      padding: 8px;
+      position: relative;
     }
+
     #start {
-      background-color: #DB3642;
-      color: white;
-      border: none;
-      flex: 1;
+      color: #DB3642;
     }
     #stop {
-      background-color: #1B754F;
-      color: white;
-      border: none;
-      flex: 1;
+      color: #1B754F;
     }
     #cancelNewFlow {
-      background-color: #B7B7B7;
-      color: white;
-      border: none;
-      width: 60px;
+      color: #B7B7B7;
     }
     #clear, #smartRefresh {
       display: none;
@@ -200,12 +207,12 @@
   
   <div class="main-buttons" role="region" aria-label="Recording controls">
     <div class="recording-controls">
-      <button id="start" aria-label="Start recording">Record</button>
-      <button id="stop" aria-label="Stop recording">Stop</button>
-      <button id="cancelNewFlow" aria-label="Cancel flow creation">Cancel</button>
+      <button id="start" aria-label="Start Recording"><i class="fas fa-circle"></i></button>
+      <button id="stop" aria-label="Stop Recording"><i class="fas fa-stop"></i></button>
+      <button id="cancelNewFlow" aria-label="Cancel"><i class="fas fa-times"></i></button>
     </div>
-    <button id="clear" style="display: none;" aria-label="Clear events">Clear Events</button>
-    <button id="smartRefresh" style="display: none;" aria-label="Smart refresh">Smart Refresh</button>
+    <!-- <button id="clear" style="display: none;" aria-label="Clear events">Clear Events</button>
+    <button id="smartRefresh" style="display: none;" aria-label="Smart refresh">Smart Refresh</button> -->
   </div>
   
   <div id="status" role="status" aria-live="polite"></div>
@@ -214,9 +221,9 @@
     <div class="flow-selector">
       <select id="flowList" aria-label="Select flow"></select>
       <div class="flow-actions">
-        <button id="refreshFlow" aria-label="Refresh flow">r</button>
-        <button id="renameFlow" aria-label="Rename flow">e</button>
-        <button id="deleteFlow" aria-label="Delete flow">d</button>
+        <button id="refreshFlow" aria-label="Refresh flow"><i class="fas fa-sync-alt"></i></button>
+        <button id="renameFlow" aria-label="Rename flow"><i class="fas fa-pencil-alt"></i></button>
+        <button id="deleteFlow" aria-label="Delete flow"><i class="fas fa-trash-alt"></i></button>
       </div>
     </div>
   </div>
