@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function loadFlows() {
-    chrome.storage.local.get(['flows', 'isCreatingNewFlow'], function(result) {
+    chrome.storage.local.get(['flows', 'isCreatingNewFlow', 'lastRefreshedFlowId'], function(result) {
       flows = result.flows || {};
       isCreatingNewFlow = result.isCreatingNewFlow || false;
       
@@ -110,22 +110,38 @@ document.addEventListener('DOMContentLoaded', function() {
         hideMainButtons();
       }
       
-      updateFlowList();
+      updateFlowList(result.lastRefreshedFlowId);
     });
   }
 
-  function updateFlowList() {
+  function updateFlowList(lastRefreshedFlowId = null) {
     flowList.innerHTML = '';
-    Object.entries(flows).forEach(([id, flow]) => {
+    const flowEntries = Object.entries(flows);
+    
+    // Sort flows by timestamp in descending order (newest first)
+    flowEntries.sort((a, b) => new Date(b[1].timestamp) - new Date(a[1].timestamp));
+    
+    flowEntries.forEach(([id, flow]) => {
       const option = document.createElement('option');
       option.value = id;
       option.textContent = flow.name;
       flowList.appendChild(option);
     });
     
-    if (currentFlowId && flows[currentFlowId]) {
+    // Set the selected flow based on priority:
+    // 1. Last refreshed flow (if it exists)
+    // 2. Newest flow (first in the sorted list)
+    if (lastRefreshedFlowId && flows[lastRefreshedFlowId]) {
+      currentFlowId = lastRefreshedFlowId;
+      flowList.value = lastRefreshedFlowId;
+    } else if (flowEntries.length > 0) {
+      currentFlowId = flowEntries[0][0];
       flowList.value = currentFlowId;
+    } else {
+      currentFlowId = null;
     }
+    
+    updateButtonStates();
   }
 
   function saveFlow(name, events, initialUrl) {
@@ -219,7 +235,8 @@ document.addEventListener('DOMContentLoaded', function() {
         chrome.storage.local.set({
           savedEvents: flow.events,
           initialUrl: flow.initialUrl,
-          shouldReplayEvents: true
+          shouldReplayEvents: true,
+          lastRefreshedFlowId: currentFlowId
         }, function() {
           chrome.tabs.sendMessage(tabs[0].id, {action: 'smartRefresh'}, function(response) {
             if (chrome.runtime.lastError) {
