@@ -305,9 +305,7 @@ function replayEvents() {
             setTimeout(replayNextEvent, FIRST_EVENT_RETRY_INTERVAL);
             return;
           } else {
-            console.log('First event timeout reached, moving to next event');
-            index++;
-            setTimeout(replayNextEvent, 1000);
+            console.log('First event timeout reached, stopping replay');
             return;
           }
         }
@@ -323,9 +321,8 @@ function replayEvents() {
           console.log(`Retrying event (attempt ${event.retryCount}/${MAX_RETRIES})`);
           setTimeout(replayNextEvent, RETRY_DELAY);
         } else {
-          console.log('Max retries reached, moving to next event');
-          index++;
-          setTimeout(replayNextEvent, 1000);
+          console.log('Max retries reached, stopping replay');
+          return;
         }
         return;
       }
@@ -374,9 +371,8 @@ function replayEvents() {
           console.log(`Retrying event (attempt ${event.retryCount}/${MAX_RETRIES})`);
           setTimeout(replayNextEvent, RETRY_DELAY);
         } else {
-          console.log('Max retries reached, moving to next event');
-          index++; // Move to next event instead of stopping
-          setTimeout(replayNextEvent, 1000);
+          console.log('Max retries reached, stopping replay');
+          return;
         }
         return;
       }
