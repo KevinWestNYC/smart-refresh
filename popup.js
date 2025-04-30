@@ -141,6 +141,14 @@ document.addEventListener('DOMContentLoaded', function() {
       currentFlowId = null;
     }
     
+    // Toggle visibility of flow management section
+    const flowManagement = document.querySelector('.flow-management');
+    if (flowEntries.length > 0) {
+      flowManagement.classList.add('visible');
+    } else {
+      flowManagement.classList.remove('visible');
+    }
+    
     updateButtonStates();
   }
 
