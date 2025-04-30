@@ -105,7 +105,75 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     document.addEventListener('click', function(event) {
       if (!isLogging) return;
       
-      const target = event.target;
+      // Find the closest button or clickable parent element
+      let target = event.target;
+      while (target && target !== document.body) {
+        // Check if this is a clickable element
+        if (target.tagName === 'BUTTON' || 
+            target.tagName === 'A' || 
+            target.tagName === 'INPUT' || 
+            target.tagName === 'SELECT' ||
+            target.getAttribute('role') === 'button' ||
+            target.getAttribute('onclick') ||
+            target.getAttribute('href') ||
+            target.getAttribute('type') === 'submit' ||
+            target.getAttribute('type') === 'button') {
+          break;
+        }
+        target = target.parentElement;
+      }
+      
+      // If we didn't find a clickable element, use the original target
+      if (!target || target === document.body) {
+        target = event.target;
+      }
+
+      // Find the index of this button among similar buttons
+      let buttonIndex = -1;
+      const similarButtons = Array.from(document.querySelectorAll(target.tagName)).filter(el => {
+        // Match buttons with similar structure but be more flexible
+        const sameText = el.textContent.trim() === target.textContent.trim();
+        const sameClass = !target.className || el.className === target.className;
+        const sameType = !target.getAttribute('type') || el.getAttribute('type') === target.getAttribute('type');
+        const sameDataTest = !target.getAttribute('data-test') || el.getAttribute('data-test') === target.getAttribute('data-test');
+        
+        // Consider buttons similar if they share most characteristics
+        return (sameText || sameClass || sameType || sameDataTest);
+      });
+      
+      console.log('Found similar buttons:', similarButtons.map(b => ({
+        text: b.textContent.trim(),
+        class: b.className,
+        type: b.getAttribute('type'),
+        dataTest: b.getAttribute('data-test')
+      })));
+      
+      buttonIndex = similarButtons.indexOf(target);
+      console.log('Selected button index:', buttonIndex);
+      
+      // Collect context from parent elements
+      let contextData = [];
+      let element = target;
+      let depth = 0;
+      const MAX_DEPTH = 3;
+      
+      while (element && element !== document.body && depth < MAX_DEPTH) {
+        const elementData = {
+          tag: element.tagName,
+          id: element.id || '',
+          class: element.className || '',
+          text: element.textContent.trim().substring(0, 50),
+          role: element.getAttribute('role') || '',
+          type: element.getAttribute('type') || '',
+          'data-test': element.getAttribute('data-test') || '',
+          'data-testid': element.getAttribute('data-testid') || '',
+          'aria-label': element.getAttribute('aria-label') || ''
+        };
+        contextData.push(elementData);
+        element = element.parentElement;
+        depth++;
+      }
+      
       const eventData = {
         type: 'click',
         timestamp: new Date().toISOString(),
@@ -113,7 +181,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           tag: target.tagName,
           id: target.id || '',
           class: target.className || '',
-          text: target.textContent.trim().substring(0, 50) // Limit text length
+          text: target.textContent.trim().substring(0, 50),
+          role: target.getAttribute('role') || '',
+          type: target.getAttribute('type') || '',
+          'data-test': target.getAttribute('data-test') || '',
+          'data-testid': target.getAttribute('data-testid') || '',
+          'aria-label': target.getAttribute('aria-label') || '',
+          buttonIndex: buttonIndex,
+          context: contextData
         }
       };
       
@@ -265,23 +340,126 @@ function replayEvents() {
     if (event.type === 'click') {
       // Find the element to click
       let element;
-      if (event.element.id) {
-        element = document.getElementById(event.element.id);
-      } else if (event.element.class && event.element.text) {
-        element = findElementByClassAndText(event.element.class.split(' ')[0], event.element.text);
-      } else if (event.element.class) {
-        element = document.querySelector(`.${event.element.class.split(' ')[0]}`);
-      } else if (event.element.text) {
-        const elements = document.querySelectorAll(event.element.tag);
-        const targetText = event.element.text.trim().toLowerCase();
-        for (const el of elements) {
-          if (el.textContent.trim().toLowerCase() === targetText) {
+      
+      // Try to find element by index first if available
+      if (event.element.buttonIndex !== undefined && event.element.buttonIndex >= 0) {
+        const similarButtons = Array.from(document.querySelectorAll(event.element.tag)).filter(el => {
+          // Match buttons with similar structure but be more flexible
+          const sameText = el.textContent.trim() === event.element.text;
+          const sameClass = !event.element.class || el.className === event.element.class;
+          const sameType = !event.element.type || el.getAttribute('type') === event.element.type;
+          const sameDataTest = !event.element['data-test'] || el.getAttribute('data-test') === event.element['data-test'];
+          
+          // Consider buttons similar if they share most characteristics
+          return (sameText || sameClass || sameType || sameDataTest);
+        });
+        
+        console.log('Replay: Found similar buttons:', similarButtons.map(b => ({
+          text: b.textContent.trim(),
+          class: b.className,
+          type: b.getAttribute('type'),
+          dataTest: b.getAttribute('data-test')
+        })));
+        
+        if (similarButtons.length > event.element.buttonIndex) {
+          element = similarButtons[event.element.buttonIndex];
+          console.log('Replay: Selected button by index:', {
+            index: event.element.buttonIndex,
+            button: {
+              text: element.textContent.trim(),
+              class: element.className,
+              type: element.getAttribute('type'),
+              dataTest: element.getAttribute('data-test')
+            }
+          });
+        }
+      }
+      
+      // Fall back to other methods if index-based search failed
+      if (!element) {
+        // Helper function to check if an element matches the context
+        function elementMatchesContext(el, contextData) {
+          // Check direct attributes
+          if (contextData.id && el.id !== contextData.id) return false;
+          if (contextData.class && !el.className.includes(contextData.class)) return false;
+          if (contextData.role && el.getAttribute('role') !== contextData.role) return false;
+          if (contextData.type && el.getAttribute('type') !== contextData.type) return false;
+          if (contextData['data-test'] && el.getAttribute('data-test') !== contextData['data-test']) return false;
+          if (contextData['data-testid'] && el.getAttribute('data-testid') !== contextData['data-testid']) return false;
+          
+          // Check text content if specified
+          if (contextData.text) {
+            const elementText = el.textContent.trim().toLowerCase();
+            const targetText = contextData.text.toLowerCase();
+            if (!elementText.includes(targetText)) return false;
+          }
+          
+          return true;
+        }
+        
+        // Try to find element using context
+        if (event.element.context && event.element.context.length > 0) {
+          const possibleElements = document.querySelectorAll(event.element.tag);
+          elementLoop: for (const el of possibleElements) {
+            // Check if this element matches the recorded element's attributes
+            if (!elementMatchesContext(el, event.element)) continue;
+            
+            // Check parent elements match the context
+            let currentElement = el;
+            let contextIndex = 0;
+            while (currentElement && contextIndex < event.element.context.length) {
+              if (!elementMatchesContext(currentElement, event.element.context[contextIndex])) {
+                continue elementLoop;
+              }
+              currentElement = currentElement.parentElement;
+              contextIndex++;
+            }
+            
+            // If we have nearby text, verify it matches
+            if (event.element.nearbyText) {
+              const parentElement = el.parentElement;
+              if (parentElement) {
+                const siblings = Array.from(parentElement.children);
+                let foundNearbyText = false;
+                for (const sibling of siblings) {
+                  if (sibling !== el && sibling.textContent) {
+                    const siblingText = sibling.textContent.trim();
+                    if (event.element.nearbyText.includes(siblingText)) {
+                      foundNearbyText = true;
+                      break;
+                    }
+                  }
+                }
+                if (!foundNearbyText) continue;
+              }
+            }
+            
+            // If we got here, we found a match
             element = el;
             break;
           }
         }
-      } else {
-        element = document.querySelector(event.element.tag);
+        
+        // Fall back to previous methods if context matching failed
+        if (!element) {
+          if (event.element.id) {
+            element = document.getElementById(event.element.id);
+          } else if (event.element.class && event.element.text) {
+            element = findElementByClassAndText(event.element.class.split(' ')[0], event.element.text);
+          } else if (event.element.class) {
+            element = document.querySelector(`.${event.element.class.split(' ')[0]}`);
+          } else if (event.element.text) {
+            // Try to find by tag + text
+            const elements = document.querySelectorAll(event.element.tag);
+            const targetText = event.element.text.trim().toLowerCase();
+            for (const el of elements) {
+              if (el.textContent.trim().toLowerCase() === targetText) {
+                element = el;
+                break;
+              }
+            }
+          }
+        }
       }
 
       if (element) {
