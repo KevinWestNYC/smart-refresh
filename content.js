@@ -127,9 +127,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         element: {
           tag: target.tagName,
           id: target.id || '',
-          class: target.className || '',
+          // Handle SVG class which comes as SVGAnimatedString
+          class: target.tagName.toLowerCase() === 'svg' && target.className?.baseVal ? 
+                target.className.baseVal : 
+                (typeof target.className === 'string' ? target.className : ''),
           text: target.textContent.trim().substring(0, 50),
-          prevText: prevText
+          prevText: prevText,
+          // For SVGs, capture the first child path's data
+          pathData: target.tagName.toLowerCase() === 'svg' ? 
+                   target.querySelector('path')?.getAttribute('d') || '' :
+                   (target.tagName.toLowerCase() === 'path' ? 
+                    target.getAttribute('d') :
+                    target.closest('svg')?.querySelector('path')?.getAttribute('d') || '')
         }
       };
       
@@ -303,10 +312,21 @@ function replayEvents() {
       if (!element) {
         if (event.element.id) {
           element = document.getElementById(event.element.id);
-        } else if (event.element.class && event.element.text) {
+        } else if (event.element.class && typeof event.element.class === 'string' && event.element.text) {
           element = findElementByClassAndText(event.element.class.split(' ')[0], event.element.text);
-        } else if (event.element.class) {
-          element = document.querySelector(`.${event.element.class.split(' ')[0]}`);
+        } else if (event.element.class && typeof event.element.class === 'string') {
+          // For SVGs with class, find by both class and path data
+          if (event.element.pathData) {
+            const svgs = document.querySelectorAll(`svg[class="${event.element.class}"]`);
+            // Find the SVG that has a matching path
+            element = Array.from(svgs).find(svg => 
+              svg.querySelector(`path[d="${event.element.pathData}"]`)
+            );
+          }
+          // Fallback to just class if no match found
+          if (!element) {
+            element = document.querySelector(`.${event.element.class.split(' ')[0]}`);
+          }
         } else if (event.element.text) {
           const elements = document.querySelectorAll(event.element.tag);
           const targetText = event.element.text.trim().toLowerCase();
@@ -323,13 +343,43 @@ function replayEvents() {
 
       if (element) {
         console.log('Clicking element:', element);
-        element.click();
-        index++;
-        // For first event, move to next immediately
-        if (index === 1) {
-          replayNextEvent();
+        // For SVG elements, find the closest clickable parent
+        if (element.tagName === 'path' || element.tagName === 'svg') {
+          const clickableParent = element.closest('button, a, [role="button"], [onclick], [class*="button"], [class*="btn"]');
+          if (clickableParent) {
+            element = clickableParent;
+          }
+        }
+        // Ensure element is clickable before proceeding
+        if (typeof element.click === 'function') {
+          element.click();
+          index++;
+          // For first event, move to next immediately
+          if (index === 1) {
+            replayNextEvent();
+          } else {
+            setTimeout(replayNextEvent, 1000);
+          }
         } else {
-          setTimeout(replayNextEvent, 1000);
+          console.log('Element is not clickable:', element);
+          // Try to simulate a click event instead
+          try {
+            element.dispatchEvent(new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              view: window
+            }));
+            index++;
+            if (index === 1) {
+              replayNextEvent();
+            } else {
+              setTimeout(replayNextEvent, 1000);
+            }
+          } catch (error) {
+            console.error('Failed to click element:', error);
+            index++;
+            setTimeout(replayNextEvent, 1000);
+          }
         }
       } else {
         console.log('Element not found for click event:', event);
