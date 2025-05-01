@@ -105,7 +105,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     document.addEventListener('click', function(event) {
       if (!isLogging) return;
       
-      const target = event.target;
+      let target = event.target;
+      let prevText = null;
+
+      // If we clicked a span/p inside a button, get the button
+      if ((target.tagName === 'SPAN' || target.tagName === 'P') && target.parentElement?.tagName === 'BUTTON') {
+        target = target.parentElement;
+      }
+
+      // If this is a button, check its previous sibling's text
+      if (target.tagName === 'BUTTON') {
+        const prevSibling = target.previousElementSibling;
+        if (prevSibling) {
+          prevText = prevSibling.textContent.trim();
+        }
+      }
       
       const eventData = {
         type: 'click',
@@ -114,7 +128,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           tag: target.tagName,
           id: target.id || '',
           class: target.className || '',
-          text: target.textContent.trim().substring(0, 50) // Limit text length
+          text: target.textContent.trim().substring(0, 50),
+          prevText: prevText
         }
       };
       
@@ -266,23 +281,44 @@ function replayEvents() {
     if (event.type === 'click') {
       // Find the element to click
       let element;
-      if (event.element.id) {
-        element = document.getElementById(event.element.id);
-      } else if (event.element.class && event.element.text) {
-        element = findElementByClassAndText(event.element.class.split(' ')[0], event.element.text);
-      } else if (event.element.class) {
-        element = document.querySelector(`.${event.element.class.split(' ')[0]}`);
-      } else if (event.element.text) {
-        const elements = document.querySelectorAll(event.element.tag);
-        const targetText = event.element.text.trim().toLowerCase();
-        for (const el of elements) {
-          if (el.textContent.trim().toLowerCase() === targetText) {
-            element = el;
-            break;
-          }
+
+      if (event.element.tag === 'BUTTON' && event.element.prevText) {
+        // Find all buttons with matching text
+        const buttons = Array.from(document.querySelectorAll(event.element.tag)).filter(el => 
+          el.textContent.trim() === event.element.text
+        );
+        
+        // If we have multiple buttons, use the previous sibling text to find the right one
+        if (buttons.length > 1) {
+          element = buttons.find(button => {
+            const prevSibling = button.previousElementSibling;
+            return prevSibling && prevSibling.textContent.trim() === event.element.prevText;
+          });
+        } else if (buttons.length === 1) {
+          element = buttons[0];
         }
-      } else {
-        element = document.querySelector(event.element.tag);
+      }
+
+      // Fall back to previous methods if button matching failed
+      if (!element) {
+        if (event.element.id) {
+          element = document.getElementById(event.element.id);
+        } else if (event.element.class && event.element.text) {
+          element = findElementByClassAndText(event.element.class.split(' ')[0], event.element.text);
+        } else if (event.element.class) {
+          element = document.querySelector(`.${event.element.class.split(' ')[0]}`);
+        } else if (event.element.text) {
+          const elements = document.querySelectorAll(event.element.tag);
+          const targetText = event.element.text.trim().toLowerCase();
+          for (const el of elements) {
+            if (el.textContent.trim().toLowerCase() === targetText) {
+              element = el;
+              break;
+            }
+          }
+        } else {
+          element = document.querySelector(event.element.tag);
+        }
       }
 
       if (element) {
