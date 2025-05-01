@@ -305,40 +305,66 @@ document.addEventListener('DOMContentLoaded', function() {
   // Handle main buttons
   startButton.addEventListener('click', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (!tabs[0]) {
-        updateStatus('No active tab found', true);
-        return;
-      }
-      
       chrome.tabs.sendMessage(tabs[0].id, {action: 'startLogging'}, function(response) {
-        if (chrome.runtime.lastError) {
-          console.error('Error sending startLogging message:', chrome.runtime.lastError);
+        if (response && response.status === 'started') {
+          updateStatus('Recording started');
+          startButton.classList.add('recording');
+          startButton.disabled = true;
+        } else if (response && response.status === 'already_logging') {
+          updateStatus('Already recording');
         } else {
-          console.log('Start logging response:', response);
-          updateStatus('Logging started');
+          updateStatus('Failed to start recording', true);
         }
       });
     });
   });
 
-  // Handle stop button
+  stopButton.addEventListener('mousedown', function() {
+    this.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+    this.style.transform = 'translateY(1px)';
+  });
+
+  stopButton.addEventListener('mouseup', function() {
+    this.style.boxShadow = '';
+    this.style.transform = '';
+  });
+
+  stopButton.addEventListener('mouseleave', function() {
+    this.style.boxShadow = '';
+    this.style.transform = '';
+  });
+
+  cancelNewFlowButton.addEventListener('mousedown', function() {
+    this.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+    this.style.transform = 'translateY(1px)';
+  });
+
+  cancelNewFlowButton.addEventListener('mouseup', function() {
+    this.style.boxShadow = '';
+    this.style.transform = '';
+  });
+
+  cancelNewFlowButton.addEventListener('mouseleave', function() {
+    this.style.boxShadow = '';
+    this.style.transform = '';
+  });
+
   stopButton.addEventListener('click', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (!tabs[0]) {
-        updateStatus('No active tab found', true);
-        return;
-      }
-      
       chrome.tabs.sendMessage(tabs[0].id, {action: 'stopLogging'}, function(response) {
-        if (chrome.runtime.lastError) {
-          console.error('Error sending stopLogging message:', chrome.runtime.lastError);
+        if (response && response.status === 'stopped') {
+          updateStatus('Recording stopped');
+          startButton.classList.remove('recording');
+          startButton.disabled = false;
+          showNameFlowModal();
+          // Save the events and initial URL for the flow
+          chrome.storage.local.set({
+            tempEvents: response.events
+          });
+        } else if (response && response.status === 'not_logging') {
+          updateStatus('Not currently recording');
         } else {
-          console.log('Stop logging response:', response);
-          if (response && response.events && response.events.length > 0) {
-            showNameFlowModal();
-          } else {
-            hideMainButtons();
-          }
+          updateStatus('Failed to stop recording', true);
         }
       });
     });
