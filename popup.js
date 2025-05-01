@@ -218,8 +218,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Handle cancel new flow button
   cancelNewFlowButton.addEventListener('click', function() {
-    hideMainButtons();
-    updateStatus('Flow creation cancelled');
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      // First stop the recording if it's active
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'cancelLogging'}, function(response) {
+        hideMainButtons();
+        updateStatus('Recording cancelled');
+        startButton.classList.remove('recording');
+        startButton.disabled = false;
+      });
+    });
   });
 
   // Handle flow selection

@@ -200,6 +200,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+  else if (message.action === 'cancelLogging') {
+    if (isLogging) {
+      isLogging = false;
+      console.log('Cancelling event logging...');
+      // Clear the logged events without saving them
+      loggedEvents = [];
+      chrome.storage.local.remove(['savedEvents', 'initialUrl'], function() {
+        console.log('Events cleared from storage');
+      });
+    }
+    sendResponse({ status: 'cancelled' });
+    return true;
+  }
   else if (message.action === 'clearEvents') {
     console.log('Clearing events...');
     loggedEvents = [];
