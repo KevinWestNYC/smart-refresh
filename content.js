@@ -96,7 +96,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Save initial URL to storage
     chrome.storage.local.set({ 
       savedEvents: loggedEvents,
-      initialUrl: initialUrl 
+      initialUrl: initialUrl,
+      isRecording: true
     }, function() {
       console.log('Initial URL saved to storage');
     });
@@ -189,6 +190,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('Stopping event logging...');
     console.log('Number of events logged:', loggedEvents.length);
     
+    chrome.storage.local.set({ isRecording: false }, function() {
+      console.log('Recording state set to false');
+    });
     // Only save to storage if we have events
     if (loggedEvents.length > 0) {
       chrome.storage.local.set({ savedEvents: loggedEvents }, function() {
@@ -214,6 +218,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('Cancelling event logging...');
       // Clear the logged events without saving them
       loggedEvents = [];
+      chrome.storage.local.set({ isRecording: false }, function() {
+        console.log('Recording state set to false');
+      });
       chrome.storage.local.remove(['savedEvents', 'initialUrl'], function() {
         console.log('Events cleared from storage');
       });

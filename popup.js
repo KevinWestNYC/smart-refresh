@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const clearButton = document.getElementById('clear');
   const smartRefreshButton = document.getElementById('smartRefresh');
   const statusDiv = document.getElementById('status');
+  const nameStatusDiv = document.getElementById('nameStatus');
   const flowList = document.getElementById('flowList');
   const refreshFlowButton = document.getElementById('refreshFlow');
   const renameFlowButton = document.getElementById('renameFlow');
@@ -25,6 +26,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateStatus(message, isError = false) {
     statusDiv.textContent = message;
     statusDiv.style.color = isError ? 'red' : 'green';
+  }
+  function updateNameStatus(message, isError = false) {
+    nameStatusDiv.textContent = message;
+    nameStatusDiv.style.color = isError ? 'red' : 'green';
   }
 
   function displayEvents(events) {
@@ -203,6 +208,21 @@ document.addEventListener('DOMContentLoaded', function() {
     deleteFlowButton.disabled = !hasSelectedFlow;
   }
 
+  // Disable stop button by default
+  stopButton.disabled = true;
+  // On load, check if recording is in progress and set button states
+  chrome.storage.local.get(['isRecording'], function(result) {
+    if (result.isRecording) {
+      startButton.classList.add('recording');
+      startButton.disabled = true;
+      stopButton.disabled = false;
+    } else {
+      startButton.classList.remove('recording');
+      startButton.disabled = false;
+      stopButton.disabled = true;
+    }
+  });
+
   // Load saved flows and state when popup opens
   loadFlows();
 
@@ -287,9 +307,17 @@ document.addEventListener('DOMContentLoaded', function() {
   saveFlowNameButton.addEventListener('click', function() {
     const name = flowNameInput.value.trim();
     if (!name) {
-      updateStatus('Please enter a name', true);
+      updateNameStatus('Please enter a name', true);
       return;
     }
+
+    const nameExists = Object.values(flows).some(flow =>
+  flow.name.trim().toLowerCase() === name.toLowerCase()
+);
+      if (nameExists) {
+        updateNameStatus('A flow with this name already exists', true);
+        return;
+      }
     
     // Only rename if we're in rename mode (currentFlowId exists and we're not creating a new flow)
     if (currentFlowId && flows[currentFlowId] && !isCreatingNewFlow) {
@@ -306,6 +334,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     hideNameFlowModal();
+  });
+
+  flowNameInput.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+  
+      const name = flowNameInput.value.trim();
+      if (!name) {
+        updateNameStatus('Please enter a name', true);
+        return;
+      }
+  
+      saveFlowNameButton.click();
+    }
   });
 
   cancelFlowNameButton.addEventListener('click', hideNameFlowModal);

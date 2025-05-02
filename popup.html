@@ -38,6 +38,11 @@
       font-size: 12px;
       text-align: center;
     }
+    #nameStatus {
+      margin-top: 10px;
+      font-size: 12px;
+      text-align: center;
+    }
     #smartRefresh {
       background-color: #4CAF50;
       color: white;
@@ -307,11 +312,9 @@
   <div class="main-buttons" role="region" aria-label="Recording controls">
     <div class="recording-controls">
       <button id="start" aria-label="Start Recording"><i class="fas fa-circle"></i></button>
-      <button id="stop" aria-label="Stop Recording" disabled><i class="fas fa-stop disabled"></i></button>
+      <button id="stop" aria-label="Stop Recording" disabled><i class="fas fa-stop"></i></button>
       <button id="cancelNewFlow" aria-label="Cancel"><i class="fas fa-times"></i></button>
     </div>
-    <!-- <button id="clear" style="display: none;" aria-label="Clear events">Clear Events</button>
-    <button id="smartRefresh" style="display: none;" aria-label="Smart refresh">Smart Refresh</button> -->
   </div>
   
   <div id="status" role="status" aria-live="polite"></div>
@@ -327,6 +330,7 @@
           <button id="cancelFlowName" aria-label="Cancel naming flow"><i class="fas fa-times"></i></button>
         </div>
       </div>
+      <div id="nameStatus" role="status" aria-live="polite"></div>
     </div>
   </div>
 
