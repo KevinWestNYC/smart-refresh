@@ -241,6 +241,15 @@
       min-width: 40px;
     }
 
+    #stop:disabled {
+      color: #0E0E0E;
+      background-color: rgba(183, 183, 183, 0.15);
+      box-shadow: none;
+      transform: translateY(1px);
+      cursor: not-allowed;
+      opacity: 0.8;
+    }
+
     #stop:hover {
       background-color: rgba(183, 183, 183, 0.15);
     }
@@ -298,7 +307,7 @@
   <div class="main-buttons" role="region" aria-label="Recording controls">
     <div class="recording-controls">
       <button id="start" aria-label="Start Recording"><i class="fas fa-circle"></i></button>
-      <button id="stop" aria-label="Stop Recording"><i class="fas fa-stop"></i></button>
+      <button id="stop" aria-label="Stop Recording" disabled><i class="fas fa-stop disabled"></i></button>
       <button id="cancelNewFlow" aria-label="Cancel"><i class="fas fa-times"></i></button>
     </div>
     <!-- <button id="clear" style="display: none;" aria-label="Clear events">Clear Events</button>

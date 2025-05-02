@@ -225,6 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateStatus('Recording cancelled');
         startButton.classList.remove('recording');
         startButton.disabled = false;
+        stopButton.disabled = true;
       });
     });
   });
@@ -317,6 +318,7 @@ document.addEventListener('DOMContentLoaded', function() {
           updateStatus('Recording started');
           startButton.classList.add('recording');
           startButton.disabled = true;
+          stopButton.disabled = false;
         } else if (response && response.status === 'already_logging') {
           updateStatus('Already recording');
         } else {
@@ -363,7 +365,7 @@ document.addEventListener('DOMContentLoaded', function() {
           updateStatus('Recording stopped');
           startButton.classList.remove('recording');
           startButton.disabled = false;
-          
+          stopButton.disabled = true;
           // Only show save dialog and save events if we have any
           if (response.events && response.events.length > 0) {
             showNameFlowModal();
