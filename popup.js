@@ -363,11 +363,19 @@ document.addEventListener('DOMContentLoaded', function() {
           updateStatus('Recording stopped');
           startButton.classList.remove('recording');
           startButton.disabled = false;
-          showNameFlowModal();
-          // Save the events and initial URL for the flow
-          chrome.storage.local.set({
-            tempEvents: response.events
-          });
+          
+          // Only show save dialog and save events if we have any
+          if (response.events && response.events.length > 0) {
+            showNameFlowModal();
+            // Save the events and initial URL for the flow
+            chrome.storage.local.set({
+              tempEvents: response.events
+            });
+          } else {
+            // If no events, just hide the recording controls
+            hideMainButtons();
+            updateStatus('No events recorded');
+          }
         } else if (response && response.status === 'not_logging') {
           updateStatus('Not currently recording');
         } else {

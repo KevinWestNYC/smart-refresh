@@ -187,11 +187,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     isLogging = false;
     console.log('Stopping event logging...');
+    console.log('Number of events logged:', loggedEvents.length);
     
-    // Save final events to storage
-    chrome.storage.local.set({ savedEvents: loggedEvents }, function() {
-      console.log('Final events saved to storage');
-    });
+    // Only save to storage if we have events
+    if (loggedEvents.length > 0) {
+      chrome.storage.local.set({ savedEvents: loggedEvents }, function() {
+        console.log('Final events saved to storage');
+      });
+    } else {
+      console.log('No events to save');
+      chrome.storage.local.remove(['savedEvents', 'initialUrl'], function() {
+        console.log('Cleared empty event data from storage');
+      });
+    }
     
     // Send the collected events
     sendResponse({ 
